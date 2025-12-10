@@ -256,6 +256,9 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
                 const theta = gateOpenness * (105 * Math.PI / 180);
                 const gw = ASSETS.gate.width;
                 const gh = ASSETS.gate.height;
+                // Calculate thickness and widths
+                const halfDrawW = drawWidth / 2;
+                const thickness = 6; 
 
                 // Left Door: Hinged Left, Swings Down/South (Clockwise)
                 ctx.save();
@@ -271,7 +274,12 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
                 );
                 
                 // Draw Left Half
-                ctx.drawImage(ASSETS.gate, 0, 0, gw/2, gh, 0, 0, drawWidth/2, tileSize);
+                ctx.drawImage(ASSETS.gate, 0, 0, gw/2, gh, 0, 0, halfDrawW, tileSize);
+
+                // Draw Thickness (End Cap for Depth)
+                ctx.fillStyle = '#222';
+                ctx.fillRect(halfDrawW - 1, 0, thickness, tileSize);
+
                 ctx.restore();
 
                 // Right Door: Hinged Right, Swings Down/South (Counter-Clockwise)
@@ -291,11 +299,20 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
                 );
                 
                 // Draw Right Half (Starts at hinge 0, goes along axis)
-                ctx.drawImage(ASSETS.gate, gw/2, 0, gw/2, gh, 0, 0, drawWidth/2, tileSize);
+                ctx.drawImage(ASSETS.gate, gw/2, 0, gw/2, gh, 0, 0, halfDrawW, tileSize);
+
+                // Draw Thickness (End Cap for Depth)
+                ctx.fillStyle = '#222';
+                ctx.fillRect(halfDrawW - 1, 0, thickness, tileSize);
+
                 ctx.restore();
             } else {
                  // Closed
-                 ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
+                 // For North Gate (isTopGate), we skip drawing here and draw it AFTER the wall mask
+                 // so it appears in front of the stone frame.
+                 if (!isTopGate) {
+                     ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
+                 }
             }
         }
 
@@ -324,6 +341,13 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
 
         ctx.drawImage(ASSETS.wall, 0, 0, drawWidth, tileSize);
         ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
+
+        // North Gate Overlay (Base Position)
+        // Drawn here to ensure it is in front of the stone frame
+        if (isTopGate && gateOpenness === 0) {
+            ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
+        }
+
     } else {
         // Seam Fix: Dark strip behind the top crease
         ctx.fillStyle = '#222';
