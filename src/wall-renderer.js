@@ -276,9 +276,13 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
                 // Draw Left Half
                 ctx.drawImage(ASSETS.gate, 0, 0, gw/2, gh, 0, 0, halfDrawW, tileSize);
 
+                // Draw Top Depth (Thickness)
+                ctx.fillStyle = '#333';
+                ctx.fillRect(0, -thickness, halfDrawW, thickness);
+
                 // Draw Thickness (End Cap for Depth)
                 ctx.fillStyle = '#222';
-                ctx.fillRect(halfDrawW - 1, 0, thickness, tileSize);
+                ctx.fillRect(halfDrawW - 1, -thickness, thickness, tileSize + thickness);
 
                 ctx.restore();
 
@@ -298,12 +302,31 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
                     hingeX, hingeY
                 );
                 
-                // Draw Right Half (Starts at hinge 0, goes along axis)
+                // To correct the "Inside Out" issue, we need to draw the texture
+                // such that the center-cut part ends up at the Tip (Far Left in this basis)
+                // and the wall-edge part ends up at the Hinge (Origin).
+                // Our basis X is negative (points Left).
+                // A normal drawImage(0..W) puts 0 at Origin and W at Tip.
+                // We want Texture-Edge at Origin and Texture-Center at Tip.
+                // This implies flipping the texture relative to the draw direction.
+                
+                ctx.save();
+                // Move to Tip
+                ctx.translate(halfDrawW, 0);
+                // Flip Axis to point back to Hinge
+                ctx.scale(-1, 1);
+                // Draw Texture (Source: gw/2 to gw -> Center to Edge)
+                // Draw Dest: 0 to halfDrawW (Tip to Hinge)
                 ctx.drawImage(ASSETS.gate, gw/2, 0, gw/2, gh, 0, 0, halfDrawW, tileSize);
+                ctx.restore();
 
-                // Draw Thickness (End Cap for Depth)
+                // Draw Top Depth (Thickness)
+                ctx.fillStyle = '#333';
+                ctx.fillRect(0, -thickness, halfDrawW, thickness);
+
+                // Draw Thickness (End Cap at Tip for Depth)
                 ctx.fillStyle = '#222';
-                ctx.fillRect(halfDrawW - 1, 0, thickness, tileSize);
+                ctx.fillRect(halfDrawW - 1, -thickness, thickness, tileSize + thickness);
 
                 ctx.restore();
             } else {

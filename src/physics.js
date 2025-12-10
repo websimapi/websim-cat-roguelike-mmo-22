@@ -34,8 +34,19 @@ export function checkCollision(x, y) {
 
     // Top Gate (North) - Usually a wall in MAP_DATA[0][x], override it here
     if (gx === gateX && gy === 0) {
-        if (gatesOpen) return false; // Passable if open
+        if (gatesOpen) {
+            // Even if open, the wings usually swing South into the vestibule (y=1).
+            // But we must also ensure the player doesn't clip the wall edges in the doorframe itself.
+            if (x < gx + 0.2 || x > gx + 0.8) return true;
+            return false;
+        }
         return true; // Blocked if closed
+    }
+
+    // North Vestibule (y=1) - Check for open gate wings blocking the sides
+    if (gatesOpen && gx === gateX && gy === 1) {
+        // Wings swing south into this tile. Block the sides.
+        if (x < gx + 0.25 || x > gx + 0.75) return true;
     }
 
     // Left/Right Gates (Always open in this logic, or handle similarly if needed)
