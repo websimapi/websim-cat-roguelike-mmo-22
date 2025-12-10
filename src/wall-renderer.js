@@ -290,8 +290,8 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
                     hingeX, hingeY
                 );
                 
-                // Draw Right Half (Backwards from hinge)
-                ctx.drawImage(ASSETS.gate, gw/2, 0, gw/2, gh, -drawWidth/2, 0, drawWidth/2, tileSize);
+                // Draw Right Half (Starts at hinge 0, goes along axis)
+                ctx.drawImage(ASSETS.gate, gw/2, 0, gw/2, gh, 0, 0, drawWidth/2, tileSize);
                 ctx.restore();
             } else {
                  // Closed
