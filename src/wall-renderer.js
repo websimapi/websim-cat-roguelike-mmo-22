@@ -256,9 +256,6 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
                 const theta = gateOpenness * (105 * Math.PI / 180);
                 const gw = ASSETS.gate.width;
                 const gh = ASSETS.gate.height;
-                // Calculate thickness and widths
-                const halfDrawW = drawWidth / 2;
-                const thickness = 6; 
 
                 // Left Door: Hinged Left, Swings Down/South (Clockwise)
                 ctx.save();
@@ -274,16 +271,14 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
                 );
                 
                 // Draw Left Half
-                ctx.drawImage(ASSETS.gate, 0, 0, gw/2, gh, 0, 0, halfDrawW, tileSize);
-
-                // Draw Top Depth (Thickness)
-                ctx.fillStyle = '#333';
-                ctx.fillRect(0, -thickness, halfDrawW, thickness);
-
-                // Draw Thickness (End Cap for Depth)
+                ctx.drawImage(ASSETS.gate, 0, 0, gw/2, gh, 0, 0, drawWidth/2, tileSize);
+                
+                // Depth: Top Edge
                 ctx.fillStyle = '#222';
-                ctx.fillRect(halfDrawW - 1, -thickness, thickness, tileSize + thickness);
-
+                ctx.fillRect(0, -4, drawWidth/2, 4);
+                // Depth: Swinging Edge Cap
+                ctx.fillRect(drawWidth/2, 0, 4, tileSize);
+                
                 ctx.restore();
 
                 // Right Door: Hinged Right, Swings Down/South (Counter-Clockwise)
@@ -301,41 +296,28 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
                     -shear/tileSize, 1, 
                     hingeX, hingeY
                 );
-                
-                // To correct the "Inside Out" issue, we need to draw the texture
-                // such that the center-cut part ends up at the Tip (Far Left in this basis)
-                // and the wall-edge part ends up at the Hinge (Origin).
-                // Our basis X is negative (points Left).
-                // A normal drawImage(0..W) puts 0 at Origin and W at Tip.
-                // We want Texture-Edge at Origin and Texture-Center at Tip.
-                // This implies flipping the texture relative to the draw direction.
-                
-                ctx.save();
-                // Move to Tip
-                ctx.translate(halfDrawW, 0);
-                // Flip Axis to point back to Hinge
+
+                // Fix visual flip: Move origin to center of arch, flip X axis to point right
+                ctx.translate(drawWidth/2, 0);
                 ctx.scale(-1, 1);
-                // Draw Texture (Source: gw/2 to gw -> Center to Edge)
-                // Draw Dest: 0 to halfDrawW (Tip to Hinge)
-                ctx.drawImage(ASSETS.gate, gw/2, 0, gw/2, gh, 0, 0, halfDrawW, tileSize);
-                ctx.restore();
+                
+                // Draw Right Half (Now Dragon is at 0/Center, Tail is at Width/Hinge)
+                ctx.drawImage(ASSETS.gate, gw/2, 0, gw/2, gh, 0, 0, drawWidth/2, tileSize);
 
-                // Draw Top Depth (Thickness)
-                ctx.fillStyle = '#333';
-                ctx.fillRect(0, -thickness, halfDrawW, thickness);
-
-                // Draw Thickness (End Cap at Tip for Depth)
+                // Depth: Top Edge
                 ctx.fillStyle = '#222';
-                ctx.fillRect(halfDrawW - 1, -thickness, thickness, tileSize + thickness);
+                ctx.fillRect(0, -4, drawWidth/2, 4);
+                // Depth: Swinging Edge Cap
+                ctx.fillRect(drawWidth/2, 0, 4, tileSize); // Wait, center is at 0 now?
+                // In this flipped space: 0 is Center (Swinging Edge), W is Hinge.
+                // So Cap should be at 0? But we flipped.
+                // Actually let's draw cap at 0 (Swinging Edge)
+                ctx.fillRect(-4, 0, 4, tileSize);
 
                 ctx.restore();
             } else {
                  // Closed
-                 // For North Gate (isTopGate), we skip drawing here and draw it AFTER the wall mask
-                 // so it appears in front of the stone frame.
-                 if (!isTopGate) {
-                     ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
-                 }
+                 ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
             }
         }
 
@@ -364,13 +346,6 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
 
         ctx.drawImage(ASSETS.wall, 0, 0, drawWidth, tileSize);
         ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
-
-        // North Gate Overlay (Base Position)
-        // Drawn here to ensure it is in front of the stone frame
-        if (isTopGate && gateOpenness === 0) {
-            ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
-        }
-
     } else {
         // Seam Fix: Dark strip behind the top crease
         ctx.fillStyle = '#222';
