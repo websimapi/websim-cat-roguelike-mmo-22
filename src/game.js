@@ -47,6 +47,12 @@ async function init() {
 
     await loadAssets();
     await loadSettings();
+    
+    // Check if player has quest on load (persistence fallback or dev testing)
+    if (localPlayer.quests.some(q => q.id === 'find_kittens')) {
+        state.gateOpenTime = 1; // Force open immediately
+    }
+
     await initNetwork(); // Moved network init logic here
 
     document.getElementById('loading').style.display = 'none';

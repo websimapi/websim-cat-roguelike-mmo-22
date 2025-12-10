@@ -165,18 +165,27 @@ export class Renderer {
             }
         }
 
+        // Calculate Gate Openness
+        let gateOpenness = 0;
+        if (gameState.gateOpenTime > 0) {
+            const elapsed = Date.now() - gameState.gateOpenTime;
+            gateOpenness = Math.min(1, elapsed / 2500); // 2.5s duration
+            // Ease out
+            gateOpenness = 1 - Math.pow(1 - gateOpenness, 3);
+        }
+
         // 1.25 Draw Background Walls (North Walls & Vestibule Pillars)
         // These need to be drawn BEFORE the shadow pass so shadows can be cast ONTO them.
         
         // Draw Vestibule Pillars FIRST (y=1) so the main North Wall (y=0) covers them
         // This fixes the "interior wall z-index too high" issue
-        drawWall(this, gateX - 1, 1, camX, camY);
-        drawWall(this, gateX + 1, 1, camX, camY);
+        drawWall(this, gateX - 1, 1, camX, camY, gateOpenness);
+        drawWall(this, gateX + 1, 1, camX, camY, gateOpenness);
 
         // Draw North Walls (y=0) SECOND
         for (let x = 0; x < CONFIG.GRID_W; x++) {
             if (MAP_DATA[0][x] === 1) {
-                drawWall(this, x, 0, camX, camY);
+                drawWall(this, x, 0, camX, camY, gateOpenness);
             }
         }
 
@@ -287,7 +296,7 @@ export class Renderer {
         // Execute Draw
         renderList.forEach(item => {
             if (item.type === 'wall') {
-                drawWall(this, item.x, item.y, camX, camY);
+                drawWall(this, item.x, item.y, camX, camY, gateOpenness);
 
             } else if (item.type === 'shop') {
                 const shopPos = this.gridToScreen(3, 2, camX, camY);
@@ -318,7 +327,7 @@ export class Renderer {
         // Draws the arch/roof of the gate ON TOP of the player when they are walking through it.
         // This ensures the player appears "under" or "inside" the gate structure.
         if (localPlayerInNorthGate) {
-            drawGateOverlay(this, 0, camX, camY);
+            drawGateOverlay(this, 0, camX, camY, gateOpenness);
         }
 
         // 4. Night Overlay (Post-Render)

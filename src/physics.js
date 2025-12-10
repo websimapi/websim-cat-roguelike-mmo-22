@@ -1,4 +1,5 @@
 import { CONFIG, MAP_DATA } from './config.js';
+import { state } from './state.js';
 
 /**
  * Checks if a coordinate is blocked by walls, shop, or map boundaries.
@@ -19,13 +20,25 @@ export function checkCollision(x, y) {
     const gateX = Math.floor(CONFIG.GRID_W / 2);
     const gateY = Math.floor(CONFIG.GRID_H / 2);
 
-    // Bottom Gate (South) - Half-block barrier
+    // Check if gates are open
+    const gatesOpen = state.gateOpenTime > 0;
+
+    // Bottom Gate (South)
     if (gx === gateX && gy === CONFIG.GRID_H - 1) {
-        // Allow entering the alcove but stop before exiting (barrier at 50% mark)
+        if (gatesOpen) return false; // Passable if open
+        
+        // Closed: Allow entering the alcove but stop before exiting (barrier at 50% mark)
         if (y > gy + 0.5) return true;
         return false;
     }
-    // Left/Right Gates
+
+    // Top Gate (North) - Usually a wall in MAP_DATA[0][x], override it here
+    if (gx === gateX && gy === 0) {
+        if (gatesOpen) return false; // Passable if open
+        return true; // Blocked if closed
+    }
+
+    // Left/Right Gates (Always open in this logic, or handle similarly if needed)
     if (gy === gateY && (gx === 0 || gx === CONFIG.GRID_W - 1)) return false;
 
     // 4. Vestibule Pillars (Visual-only walls, allow passing)

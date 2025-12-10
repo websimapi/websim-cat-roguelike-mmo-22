@@ -21,7 +21,8 @@ export const state = {
     // Default fixed time: 3 minutes into the day (in seconds).
     // This can be overridden via settings.json -> timeOfDaySeconds.
     time: 180,
-    selectedPlayerId: null
+    selectedPlayerId: null,
+    gateOpenTime: 0 // Timestamp when gates started opening. 0 = closed.
 };
 
 // Logic for local player

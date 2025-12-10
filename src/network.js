@@ -1,6 +1,7 @@
 import { state, localPlayer } from './state.js';
 import { spawnProjectile } from './physics.js';
 import { playSound } from './assets.js';
+import { triggerGateOpen } from './ai.js'; // Helper to trigger effects
 
 export const room = new WebsimSocket();
 
@@ -52,7 +53,30 @@ export async function initNetwork() {
     // Handle messages
     room.onmessage = (e) => {
         const msg = e.data;
-        if (msg.type === 'shoot') {
+        if (msg.type === 'quest_sync') {
+             // Only process if in same party
+             if (localPlayer.partyId === msg.partyId) {
+                 if (msg.questId === 'find_kittens') {
+                     // Add quest logic logic duplicated here or import helper?
+                     // We'll access the quest array directly for simplicity as AI has local scoping issues
+                     if (!localPlayer.quests.some(q => q.id === msg.questId)) {
+                        localPlayer.quests.push({
+                            id: msg.questId,
+                            title: 'Lost Kittens',
+                            description: 'Find the 3 lost kittens in the North and South rifts.',
+                            progress: 0,
+                            target: 3,
+                            completed: false
+                        });
+                        const btnQuests = document.getElementById('btn-quests');
+                        if (btnQuests) btnQuests.style.display = 'block';
+                     }
+                     // Open Gate
+                     triggerGateOpen();
+                 }
+             }
+        }
+        else if (msg.type === 'shoot') {
             if (msg.ownerId === state.myId) return;
             spawnProjectile(state, msg.x, msg.y, msg.dx, msg.dy, msg.ownerId);
             playSound('shoot', 0.3); 

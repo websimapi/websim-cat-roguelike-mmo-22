@@ -58,7 +58,7 @@ export function getWallTopRenderInfo(x, y, camX, camY, canvasWidth, canvasHeight
     return { x: topX, y: topY, w: drawWidth, h: tileSize };
 }
 
-export function drawWall(renderer, x, y, camX, camY) {
+export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
     const ctx = renderer.ctx;
     const tileSize = CONFIG.TILE_SIZE * CONFIG.SCALE;
     const pos = renderer.gridToScreen(x, y, camX, camY);
@@ -252,7 +252,40 @@ export function drawWall(renderer, x, y, camX, camY) {
         
         // Draw Steel Gate Texture (Behind the wall cutout)
         if (isTopGate || isBottomGate) {
-            ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
+            // Animated Split Gate
+            if (gateOpenness > 0) {
+                const gw = ASSETS.gate.width;
+                const gh = ASSETS.gate.height;
+                const halfDrawW = drawWidth / 2;
+                
+                // Max slide is almost fully into the wall (half width)
+                const slide = halfDrawW * gateOpenness * 1.8; // 1.8 multiplier to ensure it clears well
+
+                // Left Half (Slides Left)
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, 0, halfDrawW, tileSize);
+                ctx.clip(); // Clip to left side of opening
+                ctx.drawImage(ASSETS.gate, 
+                    0, 0, gw/2, gh, 
+                    -slide, 0, halfDrawW, tileSize
+                );
+                ctx.restore();
+
+                // Right Half (Slides Right)
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(halfDrawW, 0, halfDrawW, tileSize);
+                ctx.clip(); // Clip to right side
+                ctx.drawImage(ASSETS.gate, 
+                    gw/2, 0, gw/2, gh, 
+                    halfDrawW + slide, 0, halfDrawW, tileSize
+                );
+                ctx.restore();
+            } else {
+                // Closed
+                ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
+            }
         }
 
         // Top/Bottom/Side Gate Arch
@@ -296,7 +329,7 @@ export function drawWall(renderer, x, y, camX, camY) {
     ctx.drawImage(ASSETS.wall, topX, topY, drawWidth, tileSize);
 }
 
-export function drawGateOverlay(renderer, y, camX, camY) {
+export function drawGateOverlay(renderer, y, camX, camY, gateOpenness = 0) {
     const ctx = renderer.ctx;
     const tileSize = CONFIG.TILE_SIZE * CONFIG.SCALE;
 
@@ -391,9 +424,20 @@ export function drawGateOverlay(renderer, y, camX, camY) {
             // Seam Fix
             ctx.fillStyle = '#222';
             ctx.fillRect(0, -1.5, drawWidth, 2);
-
+            
+            // Draw wall frame
             ctx.drawImage(ASSETS.wall, 0, 0, drawWidth, tileSize);
             ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
+
+            // Re-draw gate texture if animating, so it appears "under" the arch in overlay too?
+            // Actually, the overlay is the *wall* covering the player.
+            // If the player walks under the arch, they are behind the wall but in front of the gate?
+            // No, the gate is physically in the wall gap.
+            // The Overlay is the top arch part. It should NOT contain the gate texture itself, just the wall texture.
+            // The previous code had: if (isTopGate || isBottomGate) { ctx.drawImage(ASSETS.gate, ...); } inside drawWall.
+            // drawGateOverlay specifically redraws the *Front Face* which creates the arch.
+            // If we look at the original code for Overlay: it did NOT draw ASSETS.gate.
+            // So we don't need to add gate logic here. The overlay is just the stone arch.
         } else {
             // Solid Wall Overlay for non-gate north walls
             // Seam Fix

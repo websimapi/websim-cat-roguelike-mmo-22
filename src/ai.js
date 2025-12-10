@@ -1,5 +1,6 @@
 import { playSound } from './assets.js';
-import { localPlayer } from './state.js';
+import { localPlayer, state } from './state.js';
+import { room } from './network.js';
 
 export function interactWithNPC(npc, onClose) {
     const chatBox = document.getElementById('chat-box');
@@ -82,21 +83,32 @@ export function interactWithNPC(npc, onClose) {
             };
 
             const acceptQuest = () => {
-                // Add Quest
-                localPlayer.quests.push({
-                    id: 'find_kittens',
-                    title: 'Lost Kittens',
-                    description: 'Find the 3 lost kittens in the North and South rifts.',
-                    progress: 0,
-                    target: 3,
-                    completed: false
-                });
+                // Party Check: Only leader can accept
+                if (localPlayer.partyId && localPlayer.leaderId !== state.myId) {
+                    showNode("Please ask your party leader to accept this quest.", [
+                        { text: "Okay", action: closeDialogue }
+                    ]);
+                    return;
+                }
 
-                // Update UI for Quests immediately
-                const btnQuests = document.getElementById('btn-quests');
-                if (btnQuests) btnQuests.style.display = 'block';
+                const questId = 'find_kittens';
+                
+                // Add Quest Locally
+                addQuest(questId);
+                
+                // Open Gates Locally
+                triggerGateOpen();
 
-                showNode("Oh thank you! I'll unlock the shop once you bring them back safely.", [
+                // Network Sync: Tell party members
+                if (localPlayer.partyId) {
+                    room.send({
+                        type: 'quest_sync',
+                        questId: questId,
+                        partyId: localPlayer.partyId
+                    });
+                }
+
+                showNode("Oh thank you! The gates to the North and South are now open. Please be careful!", [
                     { text: "I'm on it!", action: closeDialogue }
                 ]);
             };
@@ -111,6 +123,29 @@ export function interactWithNPC(npc, onClose) {
         // Generic NPC Fallback
         const phrases = ["Meow.", "Prrrt?", "Need something?"];
         showNode(phrases[Math.floor(Math.random() * phrases.length)], []);
+    }
+}
+
+function addQuest(questId) {
+    if (localPlayer.quests.some(q => q.id === questId)) return;
+
+    localPlayer.quests.push({
+        id: questId,
+        title: 'Lost Kittens',
+        description: 'Find the 3 lost kittens in the North and South rifts.',
+        progress: 0,
+        target: 3,
+        completed: false
+    });
+
+    const btnQuests = document.getElementById('btn-quests');
+    if (btnQuests) btnQuests.style.display = 'block';
+}
+
+export function triggerGateOpen() {
+    if (state.gateOpenTime === 0) {
+        state.gateOpenTime = Date.now();
+        playSound('gate_open', 0.6);
     }
 }
 

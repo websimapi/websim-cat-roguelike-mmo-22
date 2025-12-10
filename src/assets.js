@@ -5,6 +5,7 @@ export const ASSETS = {
     gate: new Image(),
     shootInfo: { url: 'shoot_sfx.mp3', buffer: null },
     meowInfo: { url: 'meow.mp3', buffer: null },
+    gateOpenInfo: { url: 'gate_open.mp3', buffer: null },
     musicInfo: { url: 'twilight_alley.ogg', buffer: null },
     loaded: false
 };
@@ -19,6 +20,7 @@ export async function loadAssets() {
         new Promise(resolve => { ASSETS.gate.onload = resolve; ASSETS.gate.src = 'gate.png'; }),
         loadAudio(ASSETS.shootInfo),
         loadAudio(ASSETS.meowInfo),
+        loadAudio(ASSETS.gateOpenInfo),
         loadAudio(ASSETS.musicInfo)
     ];
 
@@ -40,6 +42,7 @@ export function playSound(name, volume = 0.5) {
     let buffer = null;
     if (name === 'shoot') buffer = ASSETS.shootInfo.buffer;
     if (name === 'meow') buffer = ASSETS.meowInfo.buffer;
+    if (name === 'gate_open') buffer = ASSETS.gateOpenInfo.buffer;
 
     if (buffer) {
         const source = audioCtx.createBufferSource();
