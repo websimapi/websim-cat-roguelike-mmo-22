@@ -256,68 +256,155 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
                 const theta = gateOpenness * (105 * Math.PI / 180);
                 const gw = ASSETS.gate.width;
                 const gh = ASSETS.gate.height;
+                const halfDrawW = drawWidth / 2;
+                const thickness = 10; // Thicker gate for visibility
+                const s = shear / tileSize; // Shear slope
 
-                // Left Door: Hinged Left, Swings Down/South (Clockwise)
+                // --- LEFT DOOR ---
                 ctx.save();
+                
+                // Transform setup:
+                // Hinge at (pos.x + shear, pos.y) - this is the bottom-left corner of the wall face
+                // Rotation basis:
+                // X (Width): Rotates from (1,0) to approx (0,1)
+                // Y (Height): Follows wall slope (-s, 1)
+                
                 const cosL = Math.cos(theta);
                 const sinL = Math.sin(theta);
                 
-                // Basis X rotates from (1,0) to (0,1)
-                // Basis Y (Vertical) stays fixed (shear, 1) to match wall slant
-                ctx.setTransform(
-                    cosL, sinL, 
-                    -shear/tileSize, 1, 
-                    pos.x + shear, pos.y
-                );
+                // Basis Vectors for the Door Face
+                // X' = cos(theta) * (1,0) + sin(theta) * (DepthVector)
+                // DepthVector in screen space (approx south): (-s, 1) normalized? 
+                // Let's use simple rotation: (cos, sin) in logic, mapped to screen.
+                // Screen X: cos
+                // Screen Y: sin + (-s * y_tex) ? 
                 
-                // Draw Left Half
-                ctx.drawImage(ASSETS.gate, 0, 0, gw/2, gh, 0, 0, drawWidth/2, tileSize);
+                // Manual Basis Transform for correct 3D look
+                // We want the door to swing "Out/South". 
+                // Wall Vector: (1, 0)
+                // Depth Vector: (-s, 1)
+                // Rotated Vector = Wall * cos + Depth * sin
                 
-                // Depth: Top Edge
-                ctx.fillStyle = '#222';
-                ctx.fillRect(0, -4, drawWidth/2, 4);
-                // Depth: Swinging Edge Cap
-                ctx.fillRect(drawWidth/2, 0, 4, tileSize);
+                const vx = cosL - sinL * s; // X component of width vector
+                const vy = sinL;            // Y component of width vector
+                
+                ctx.transform(vx, vy, -s, 1, pos.x + shear, pos.y);
+
+                // 1. Draw The Side/Cut Face (The thickness at the split)
+                // Visible when door opens. It is at x=halfDrawW.
+                // It is perpendicular to the face. 
+                // We can fake it by drawing a rectangle at the end, but skewed?
+                // Or just a rect at the end.
+                ctx.fillStyle = '#111';
+                ctx.fillRect(halfDrawW, 0, thickness/4, tileSize); // Dark inner core
+                
+                // 2. Draw Top Thickness
+                ctx.fillStyle = '#444';
+                ctx.fillRect(0, -thickness, halfDrawW, thickness);
+                
+                // 3. Draw Front Face
+                ctx.drawImage(ASSETS.gate, 0, 0, gw/2, gh, 0, 0, halfDrawW, tileSize);
+                
+                // 4. Draw "3D" Cut Edge Face explicitly
+                // The transform puts us on the door face plane.
+                // The cut edge sticks "back" perpendicular to this plane?
+                // Or if we view the door as a slab, we are seeing the side.
+                // Let's draw a lit side face at the tip.
+                ctx.save();
+                ctx.translate(halfDrawW, 0);
+                // Reset skew for the side face to make it look like a solid block end
+                // Actually simpler: just draw a rect slightly offset to simulate the back corner
+                ctx.fillStyle = '#5a3e3e'; // Rusty iron inner color
+                ctx.fillRect(0, 0, thickness, tileSize);
+                
+                // Add some detail to the cut
+                ctx.fillStyle = '#000';
+                ctx.fillRect(2, 2, thickness-4, tileSize-4);
                 
                 ctx.restore();
+                ctx.restore();
 
-                // Right Door: Hinged Right, Swings Down/South (Counter-Clockwise)
+                // --- RIGHT DOOR ---
                 ctx.save();
                 const hingeX = pos.x + shear + drawWidth;
                 const hingeY = pos.y;
                 
-                // Rotates from (-1,0) to (0,1) -> Angle PI down to PI/2
-                const angleR = Math.PI - theta;
-                const cosR = Math.cos(angleR);
-                const sinR = Math.sin(angleR);
+                // Mirror logic for Right Door
+                // Swings South-West. 
+                // Wall Vector is (-1, 0) relative to hinge? 
+                // Or Hinge is at Right, door extends Left (-1, 0).
+                // Rotates to South (-s, 1).
                 
-                ctx.setTransform(
-                    cosR, sinR, 
-                    -shear/tileSize, 1, 
-                    hingeX, hingeY
-                );
-
-                // Fix visual flip: Move origin to center of arch, flip X axis to point right
-                ctx.translate(drawWidth/2, 0);
-                ctx.scale(-1, 1);
+                // Angle from Wall (-1,0) to South. CCW rotation.
+                // Vector = (-cos, -sin*s + sin)?
+                // Let's conceptually mirror the Left Door logic.
+                // Left: (1,0) -> (-s, 1).
+                // Right: (-1,0) -> (-s, 1).
                 
-                // Draw Right Half (Now Dragon is at 0/Center, Tail is at Width/Hinge)
-                ctx.drawImage(ASSETS.gate, gw/2, 0, gw/2, gh, 0, 0, drawWidth/2, tileSize);
+                // Rotated Vector (pointing to tip):
+                // x = -cos(theta) - sin(theta)*s
+                // y = sin(theta)
+                
+                const rvx = -cosL - sinL * s;
+                const rvy = sinL;
+                
+                ctx.transform(rvx, rvy, -s, 1, hingeX, hingeY);
+                
+                // Draw Texture: Need right half of image.
+                // But we are drawing from Hinge (0,0) to Tip (halfDrawW).
+                // The texture needs to be drawn "backwards" or flipped?
+                // Or we effectively draw 0 to halfDrawW, but map texture gw/2...gw to halfDrawW...0?
+                // Easiest: Scale X by -1 before draw? No, that flips normal.
+                // Let's just map texture coords right.
+                
+                // 1. Top Thickness
+                ctx.fillStyle = '#444';
+                ctx.fillRect(0, -thickness, halfDrawW, thickness);
+                
+                // 2. Front Face
+                // We want the Hinge side of the texture (Right Edge of image) at 0?
+                // No, Hinge is at Right Wall. Texture Right Edge is at Hinge.
+                // Tip is at Center. Texture Center is at Tip.
+                // So we draw texture normally, but mirrored?
+                // Let's just flip the coordinate system horizontally so +X goes towards Tip.
+                // But texture is Right-Half.
+                
+                // Draw Right Half of Texture
+                // Source: gw/2 (Center) to gw (Right Edge/Hinge).
+                // Dest: halfDrawW (Tip) to 0 (Hinge).
+                // Since our transform X goes Hinge -> Tip.
+                // We need to draw image flipped.
+                
+                ctx.save();
+                ctx.scale(-1, 1); // Flip X
+                // Now +X goes Tip -> Hinge (Left).
+                // We want to draw from 0 (Hinge) to -halfDrawW (Tip).
+                // Image: gw/2 to gw.
+                ctx.drawImage(ASSETS.gate, gw/2, 0, gw/2, gh, -halfDrawW, 0, halfDrawW, tileSize);
+                ctx.restore();
 
-                // Depth: Top Edge
-                ctx.fillStyle = '#222';
-                ctx.fillRect(0, -4, drawWidth/2, 4);
-                // Depth: Swinging Edge Cap
-                ctx.fillRect(drawWidth/2, 0, 4, tileSize); // Wait, center is at 0 now?
-                // In this flipped space: 0 is Center (Swinging Edge), W is Hinge.
-                // So Cap should be at 0? But we flipped.
-                // Actually let's draw cap at 0 (Swinging Edge)
-                ctx.fillRect(-4, 0, 4, tileSize);
+                // 3. Cut Edge Face (at the Tip)
+                ctx.save();
+                // Tip is at local X = halfDrawW (in our vector basis)
+                ctx.translate(halfDrawW, 0);
+                
+                // Draw Thickness face
+                ctx.fillStyle = '#5a3e3e';
+                ctx.fillRect(0, 0, thickness, tileSize);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(2, 2, thickness-4, tileSize-4);
+                
+                ctx.restore();
 
                 ctx.restore();
+
             } else {
                  // Closed
-                 ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
+                 // For North Gate (isTopGate), we skip drawing here and draw it AFTER the wall mask
+                 // so it appears in front of the stone frame.
+                 if (!isTopGate) {
+                     ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
+                 }
             }
         }
 
@@ -346,6 +433,13 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
 
         ctx.drawImage(ASSETS.wall, 0, 0, drawWidth, tileSize);
         ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
+
+        // North Gate Overlay (Base Position)
+        // Drawn here to ensure it is in front of the stone frame
+        if (isTopGate && gateOpenness === 0) {
+            ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
+        }
+
     } else {
         // Seam Fix: Dark strip behind the top crease
         ctx.fillStyle = '#222';

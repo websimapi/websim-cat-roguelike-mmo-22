@@ -23,116 +23,32 @@ export function checkCollision(x, y) {
     // Check if gates are open
     const gatesOpen = state.gateOpenTime > 0;
 
-    // Helper to check dynamic gate door collision
-    const checkDoorCollision = (gx, gy, x, y) => {
-        if (!gatesOpen) return true; // Closed = Wall
-
-        // Calculate Openness
-        const elapsed = Date.now() - state.gateOpenTime;
-        let gateOpenness = Math.min(1, elapsed / 2500);
-        gateOpenness = 1 - Math.pow(1 - gateOpenness, 3);
-        
-        const theta = gateOpenness * (105 * Math.PI / 180);
-        
-        // Door 1 (Left): Hinge at (gx, gy). Tip roughly at (gx + 0.5*cos(theta), gy + 0.5*sin(theta))
-        // We approximate collision by checking if player is close to the "Bar" of the door
-        // Since y increases (South) with sin(theta), the door enters the tile.
-        
-        // Simple Point-Line Distance check?
-        // Let's just use a bounding box approach relative to the swing.
-        
-        const doorLen = 0.55; // Slightly longer than half to overlap
-        
-        // Left Door Segment
-        const lHingeX = gx;
-        const lHingeY = gy; // Top of tile relative logic
-        const lTipX = lHingeX + doorLen * Math.cos(theta);
-        const lTipY = lHingeY + doorLen * Math.sin(theta);
-        
-        // Right Door Segment
-        const rHingeX = gx + 1;
-        const rHingeY = gy;
-        const rAngle = Math.PI - theta;
-        const rTipX = rHingeX + doorLen * Math.cos(rAngle);
-        const rTipY = rHingeY + doorLen * Math.sin(rAngle);
-
-        // Distance from point (x,y) to segment (x1,y1)-(x2,y2)
-        const distToSegment = (px, py, x1, y1, x2, y2) => {
-            const A = px - x1;
-            const B = py - y1;
-            const C = x2 - x1;
-            const D = y2 - y1;
-            const dot = A * C + B * D;
-            const lenSq = C * C + D * D;
-            let param = -1;
-            if (lenSq !== 0) param = dot / lenSq;
-            
-            let xx, yy;
-            if (param < 0) { xx = x1; yy = y1; }
-            else if (param > 1) { xx = x2; yy = y2; }
-            else { xx = x1 + param * C; yy = y1 + param * D; }
-            
-            const dx = px - xx;
-            const dy = py - yy;
-            return Math.sqrt(dx * dx + dy * dy);
-        };
-
-        // If player is within 0.3 of either door, block
-        // Note: North gate is at y=0. Door hinges at y=0 (visually top) but physically we collide at y=1 boundary?
-        // Actually, logic maps player y to grid.
-        // For North Gate (y=0), player is usually at y > 1.
-        // But door swings INTO y > 0.
-        // So we offset the segment Y by +1 to match the "Bottom of Wall" hinge point?
-        // Visually we hinged at Top of Wall. But visual Wall covers Tile 0.
-        // So the door physically exists on Tile 0.
-        // But with "Open Down", it extends to Tile 1.
-        // So we check against (gx, gy + 1) basis? 
-        // No, let's use the local tile coords 0..1. 
-        // If the player is at y=1.2 (Tile 1), and door swings to y=0.5 (Tile 0), no collision.
-        // If door swings to y=1.5 (Tile 1), collision.
-        // Our theta logic: sin(105) ~ 0.96. So Tip Y is +0.5 from Hinge.
-        // If Hinge is at gy=0. It swings to gy=0.5. (Stays in Tile 0).
-        // BUT visuals show it skewing. The transform includes a '1' scale on Y.
-        // And 'shear' on X.
-        // It does NOT stretch Y. So it stays in Tile 0 vertically?
-        // If so, the corridor (Tile 1) is clear.
-        // Collision inside Tile 0:
-        // If player enters Tile 0 (y < 1), they hit the doors.
-        
-        // Hinge is at gy.
-        // Wait, collision logic uses raw x,y.
-        // If I am at x=11.5, y=0.5. I am inside Tile 0.
-        // Door is there.
-        // Hinge at (11, 0) and (12, 0).
-        // Tip at (11 + dx, 0 + dy).
-        // Max Y is 0.5.
-        // So if I am at y=0.8, I might pass UNDER the door?
-        // No, the door is a vertical gate. It blocks the whole height?
-        // It's a top-down game. The door is an object on the floor.
-        // So yes, simple distance check.
-        
-        if (distToSegment(x, y, lHingeX, lHingeY, lTipX, lTipY) < 0.3) return true;
-        if (distToSegment(x, y, rHingeX, rHingeY, rTipX, rTipY) < 0.3) return true;
-
-        return false;
-    };
-
     // Bottom Gate (South)
     if (gx === gateX && gy === CONFIG.GRID_H - 1) {
-        if (checkDoorCollision(gx, gy, x, y)) return true;
+        if (gatesOpen) return false; // Passable if open
         
-        // Closed/Open handled by collision check, but checkDoorCollision returns true if hit.
-        // If open and clear, returns false.
-        
-        // Boundary check for void
-        if (y > gy + 0.8) return true; // Block walking into void
+        // Closed: Allow entering the alcove but stop before exiting (barrier at 50% mark)
+        if (y > gy + 0.5) return true;
         return false;
     }
 
-    // Top Gate (North)
+    // Top Gate (North) - Usually a wall in MAP_DATA[0][x], override it here
     if (gx === gateX && gy === 0) {
-        if (checkDoorCollision(gx, gy, x, y)) return true;
-        return false; 
+        if (gatesOpen) {
+            // Even if open, the wings usually swing South into the vestibule (y=1).
+            // But we must also ensure the player doesn't clip the wall edges in the doorframe itself.
+            // Widen gap to 0.1-0.9 (0.8 width) to easily accommodate 0.6 width player
+            if (x < gx + 0.1 || x > gx + 0.9) return true;
+            return false;
+        }
+        return true; // Blocked if closed
+    }
+
+    // North Vestibule (y=1) - Check for open gate wings blocking the sides
+    if (gatesOpen && gx === gateX && gy === 1) {
+        // Wings swing south into this tile. Block the sides.
+        // Widen gap to 0.1-0.9 to match the gate frame
+        if (x < gx + 0.1 || x > gx + 0.9) return true;
     }
 
     // Left/Right Gates (Always open in this logic, or handle similarly if needed)
