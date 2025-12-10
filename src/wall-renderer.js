@@ -253,7 +253,7 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
         // Draw Steel Gate Texture (Behind the wall cutout)
         if (isTopGate || isBottomGate) {
             if (gateOpenness > 0) {
-                const theta = gateOpenness * (Math.PI / 2);
+                const theta = gateOpenness * (105 * Math.PI / 180);
                 const gw = ASSETS.gate.width;
                 const gh = ASSETS.gate.height;
 
