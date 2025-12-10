@@ -253,22 +253,46 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
         // Draw Steel Gate Texture (Behind the wall cutout)
         if (isTopGate || isBottomGate) {
             if (gateOpenness > 0) {
-                 // Drawbridge Style (Fold Down)
-                 ctx.save();
-                 // Pivot at bottom of the tile
-                 ctx.translate(0, tileSize);
-                 
-                 // Rotate around X-axis (simulated by Y scaling)
-                 // 0 -> 1 (Closed -> Open)
-                 // Angle: 0 -> 180 deg
-                 // Scale: 1 -> -1 (Up -> Down)
-                 const scaleY = Math.cos(gateOpenness * Math.PI);
-                 
-                 ctx.scale(1, scaleY);
-                 // Draw extending 'up' from pivot so it can rotate 'down'
-                 ctx.drawImage(ASSETS.gate, 0, -tileSize, drawWidth, tileSize);
-                 
-                 ctx.restore();
+                const theta = gateOpenness * (Math.PI / 2);
+                const gw = ASSETS.gate.width;
+                const gh = ASSETS.gate.height;
+
+                // Left Door: Hinged Left, Swings Down/South (Clockwise)
+                ctx.save();
+                const cosL = Math.cos(theta);
+                const sinL = Math.sin(theta);
+                
+                // Basis X rotates from (1,0) to (0,1)
+                // Basis Y (Vertical) stays fixed (shear, 1) to match wall slant
+                ctx.setTransform(
+                    cosL, sinL, 
+                    -shear/tileSize, 1, 
+                    pos.x + shear, pos.y
+                );
+                
+                // Draw Left Half
+                ctx.drawImage(ASSETS.gate, 0, 0, gw/2, gh, 0, 0, drawWidth/2, tileSize);
+                ctx.restore();
+
+                // Right Door: Hinged Right, Swings Down/South (Counter-Clockwise)
+                ctx.save();
+                const hingeX = pos.x + shear + drawWidth;
+                const hingeY = pos.y;
+                
+                // Rotates from (-1,0) to (0,1) -> Angle PI down to PI/2
+                const angleR = Math.PI - theta;
+                const cosR = Math.cos(angleR);
+                const sinR = Math.sin(angleR);
+                
+                ctx.setTransform(
+                    cosR, sinR, 
+                    -shear/tileSize, 1, 
+                    hingeX, hingeY
+                );
+                
+                // Draw Right Half (Backwards from hinge)
+                ctx.drawImage(ASSETS.gate, gw/2, 0, gw/2, gh, -drawWidth/2, 0, drawWidth/2, tileSize);
+                ctx.restore();
             } else {
                  // Closed
                  ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
