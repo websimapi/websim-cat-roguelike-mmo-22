@@ -252,49 +252,26 @@ export function drawWall(renderer, x, y, camX, camY, gateOpenness = 0) {
         
         // Draw Steel Gate Texture (Behind the wall cutout)
         if (isTopGate || isBottomGate) {
-            const gw = ASSETS.gate.width;
-            const gh = ASSETS.gate.height;
-            const halfDrawW = drawWidth / 2;
-
-            // Animated Split Gate
             if (gateOpenness > 0) {
-                // "Arc" Open (Swing on hinges)
-                // Left door hinges at 0. Right door hinges at drawWidth.
-                // We simulate rotation by compressing width (perspective) 
-                
-                // Swing angle: 0 to ~85 degrees
-                const angle = gateOpenness * (Math.PI / 2) * 0.95; 
-                const scaleX = Math.cos(angle);
-                
-                // Left Door
-                ctx.save();
-                ctx.translate(0, 0); // Hinge at left
-                ctx.scale(scaleX, 1);
-                ctx.drawImage(ASSETS.gate, 
-                    0, 0, gw/2, gh, 
-                    0, 0, halfDrawW, tileSize
-                );
-                // Darken inner face as it turns away
-                ctx.fillStyle = `rgba(0,0,0,${gateOpenness * 0.7})`;
-                ctx.fillRect(0, 0, halfDrawW, tileSize);
-                ctx.restore();
-
-                // Right Door
-                ctx.save();
-                ctx.translate(drawWidth, 0); // Hinge at right
-                ctx.scale(scaleX, 1);
-                // Draw image to the left of the hinge (negative x)
-                ctx.drawImage(ASSETS.gate, 
-                    gw/2, 0, gw/2, gh, 
-                    -halfDrawW, 0, halfDrawW, tileSize
-                );
-                ctx.fillStyle = `rgba(0,0,0,${gateOpenness * 0.7})`;
-                ctx.fillRect(-halfDrawW, 0, halfDrawW, tileSize);
-                ctx.restore();
-
+                 // Drawbridge Style (Fold Down)
+                 ctx.save();
+                 // Pivot at bottom of the tile
+                 ctx.translate(0, tileSize);
+                 
+                 // Rotate around X-axis (simulated by Y scaling)
+                 // 0 -> 1 (Closed -> Open)
+                 // Angle: 0 -> 180 deg
+                 // Scale: 1 -> -1 (Up -> Down)
+                 const scaleY = Math.cos(gateOpenness * Math.PI);
+                 
+                 ctx.scale(1, scaleY);
+                 // Draw extending 'up' from pivot so it can rotate 'down'
+                 ctx.drawImage(ASSETS.gate, 0, -tileSize, drawWidth, tileSize);
+                 
+                 ctx.restore();
             } else {
-                // Closed
-                ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
+                 // Closed
+                 ctx.drawImage(ASSETS.gate, 0, 0, drawWidth, tileSize);
             }
         }
 
